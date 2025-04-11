@@ -6,7 +6,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
-use App\Mail\WelcomeMail;
+use Illuminate\Support\Facades\URL;
+use App\Mail\VerifyEmail;
 
 class AuthController extends Controller
 {
@@ -36,7 +37,7 @@ class AuthController extends Controller
         return redirect('/');
     }
 
-    // ✅ Added register method
+    // ✅ Enhanced register method with email verification
     public function register(Request $request)
     {
         $validated = $request->validate([
@@ -57,8 +58,14 @@ class AuthController extends Controller
             'password' => bcrypt($validated['password']),
         ]);
 
-        Mail::to($user->email)->send(new WelcomeMail($user));
+        // ✅ Create signed URL valid for 60 minutes
+        $verificationUrl = URL::temporarySignedRoute(
+            'verification.validate', now()->addMinutes(60), ['id' => $user->id]
+        );
 
-        return redirect('/')->with('success', 'Registration successful! Please check your email.');
+        // ✅ Send verification email
+        Mail::to($user->email)->send(new VerifyEmail($user, $verificationUrl));
+
+        return redirect('/')->with('success', 'Registration successful! Please check your email to verify.');
     }
 }
